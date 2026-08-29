@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-page: #F9FAFB;
+  --color-surface: #FFFFFF;
+  --color-active-nav: #EEF2FF;
+  --color-accent: #4F46E5;
+  --color-text-primary: #111827;
+  --color-text-secondary: #6B7280;
+  --color-border: #E5E7EB;
+  --color-cta-dark: #111827;
+  
+  --color-success-bg: #F0FDF4;
+  --color-success-text: #16A34A;
+  
+  --color-warning-bg: #FFFBEB;
+  --color-warning-text: #D97706;
+  
+  --color-danger-bg: #FEF2F2;
+  --color-danger-text: #DC2626;
+  
+  --color-neutral-bg: #F3F4F6;
+  --color-neutral-text: #4B5563;
+  
+  --color-info-bg: #EFF6FF;
+  --color-info-text: #2563EB;
+  
+  --color-system-bg: #F5F3FF;
+  --color-system-text: #7C3AED;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-page);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
