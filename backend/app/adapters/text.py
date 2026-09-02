@@ -18,28 +18,15 @@ class TextChannelAdapter:
                 "response_payload": {"error": "User opted out of text communications"}
             }
             
-        # Simulate a Promise-to-Pay (PTP) response for receivables
+        # Always return delivered for text channel (no auto-fake responses)
         response_payload = {"message_sent": message, "simulated": True}
         if payment_link_url:
             response_payload["short_url"] = payment_link_url
         if payment_link_id:
             response_payload["link_id"] = payment_link_id
-        status = "delivered"
-        
-        # We will mock a 50% chance of a PTP response for invoice escalations
-        if intervention.get("intervention_type") == "escalate":
-            # For demo purposes, we always return a PTP for this type to satisfy Phase 6 DoD easily
-            status = "responded"
-            # Promise for 3 days from now
-            promised_date = (datetime.datetime.utcnow() + datetime.timedelta(days=3)).strftime("%Y-%m-%d")
-            response_payload["ptp"] = {
-                "amount": 2500000, # Mock 25k INR promised
-                "date": promised_date
-            }
-            response_payload["reply"] = f"I will pay the amount by {promised_date}."
 
         return {
             "channel": "text",
-            "status": status,
+            "status": "delivered",
             "response_payload": response_payload
         }

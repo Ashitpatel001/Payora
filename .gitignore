@@ -1,4 +1,4 @@
-﻿# Environments
+# Environments
 .env
 .env.*
 !.env.example
@@ -61,7 +61,7 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 *.md
-!Readme.md
+!README.md
 reference/
 
 # Reference Repositories

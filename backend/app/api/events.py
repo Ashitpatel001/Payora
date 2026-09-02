@@ -15,28 +15,48 @@ def get_events(split: str = "dev", db: Session = Depends(get_db)):
     
     events = db.query(RiskEvent).filter(RiskEvent.split == split).all()
     
+    event_ids = [evt.id for evt in events]
+    
+    # Batch lookups
+    diagnoses = {d.event_id: d for d in db.query(Diagnosis).filter(Diagnosis.event_id.in_(event_ids)).all()}
+    guardrails = {g.event_id: g for g in db.query(GuardrailResult).filter(GuardrailResult.event_id.in_(event_ids)).all()}
+    interventions = {i.event_id: i for i in db.query(Intervention).filter(Intervention.event_id.in_(event_ids)).all()}
+    
+    intervention_ids = [i.id for i in interventions.values()]
+    deliveries = {d.intervention_id: d for d in db.query(DeliveryResult).filter(DeliveryResult.intervention_id.in_(intervention_ids)).all()}
+    
+    # Audit log (latest per event)
+    # Since SQLite doesn't support advanced DISTINCT ON, we'll fetch them ordered and take the first seen per event
+    all_audits = db.query(AuditLogEntry).filter(AuditLogEntry.case_id.in_(event_ids)).order_by(AuditLogEntry.timestamp.desc()).all()
+    latest_audits = {}
+    for a in all_audits:
+        if a.case_id not in latest_audits:
+            latest_audits[a.case_id] = a
+            
+    ptps = {p.case_id: p for p in db.query(PromiseToPay).filter(PromiseToPay.case_id.in_(event_ids)).all()}
+    
     result = []
     for evt in events:
         status = "detected"
         channel = "-"
         reason = "-"
         
-        diagnosis = db.query(Diagnosis).filter(Diagnosis.event_id == evt.id).first()
+        diagnosis = diagnoses.get(evt.id)
         if diagnosis:
             cat = diagnosis.root_cause_category or 'unknown'
             reason = f"Diagnosed: {cat.replace('_', ' ').title()}"
         
         # Check guardrails
-        guardrail = db.query(GuardrailResult).filter(GuardrailResult.event_id == evt.id).first()
+        guardrail = guardrails.get(evt.id)
         if guardrail:
             if not guardrail.passed:
                 status = "blocked"
                 reason = f"Guardrail Blocked: {guardrail.reason}"
             else:
-                intervention = db.query(Intervention).filter(Intervention.event_id == evt.id).first()
+                intervention = interventions.get(evt.id)
                 if intervention:
                     channel = intervention.channel
-                    delivery = db.query(DeliveryResult).filter(DeliveryResult.intervention_id == intervention.id).first()
+                    delivery = deliveries.get(intervention.id)
                     if delivery:
                         if delivery.status == "delivered":
                             status = "in_progress"
@@ -49,11 +69,11 @@ def get_events(split: str = "dev", db: Session = Depends(get_db)):
                             reason = "Customer responded / PTP committed"
                             
         # Find latest audit log reasoning if available
-        last_audit = db.query(AuditLogEntry).filter(AuditLogEntry.case_id == evt.id).order_by(AuditLogEntry.timestamp.desc()).first()
+        last_audit = latest_audits.get(evt.id)
         if last_audit and last_audit.reasoning:
             reason = last_audit.reasoning
                         
-        ptp = db.query(PromiseToPay).filter(PromiseToPay.case_id == evt.id).first()
+        ptp = ptps.get(evt.id)
                         
         event_dict = {
             "id": evt.id,

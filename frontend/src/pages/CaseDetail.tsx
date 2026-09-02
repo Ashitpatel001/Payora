@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getCase, resolvePTP, simulatePayment } from '../api/client';
+import { getCase, resolvePTP, simulatePayment, simulatePtp } from '../api/client';
 import { Badge } from '../components/Badge';
 import { Timeline, TimelineNode } from '../components/Timeline';
 
@@ -186,9 +186,14 @@ export const CaseDetail: React.FC = () => {
             <button
               onClick={async () => {
                 setResolving(true);
-                await simulatePayment(event.id);
-                await loadCase();
-                setResolving(false);
+                try {
+                  await simulatePayment(event.id);
+                  await loadCase();
+                } catch (err: any) {
+                  alert(`Simulation failed: ${err.message}`);
+                } finally {
+                  setResolving(false);
+                }
               }}
               disabled={resolving}
               className="rounded-lg bg-info-text px-4 py-1.5 text-xs font-bold text-surface shadow-xs hover:bg-info-text/90 transition-all disabled:opacity-50"
@@ -199,8 +204,47 @@ export const CaseDetail: React.FC = () => {
         </div>
       )}
 
+      {/* PTP Simulation Banner */}
+      {!ptp && deliveries && deliveries.length > 0 && !deliveries[0].response_payload?.short_url && deliveries[0].status === 'delivered' && (
+        <div className="rounded-xl border border-info-text/20 bg-info-bg p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info-text/10 text-info-text font-bold">
+              💬
+            </div>
+            <div>
+              <h3 className="font-semibold text-info-text text-sm">
+                Awaiting Customer Response
+              </h3>
+              <p className="text-xs text-info-text/80 mt-0.5">
+                Message delivered. In demo mode, no real WhatsApp connection exists.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={async () => {
+                setResolving(true);
+                try {
+                  await simulatePtp(event.id);
+                  await loadCase();
+                } catch (err: any) {
+                  alert(`Simulation failed: ${err.message}`);
+                } finally {
+                  setResolving(false);
+                }
+              }}
+              disabled={resolving}
+              className="rounded-lg bg-info-text px-4 py-1.5 text-xs font-bold text-surface shadow-xs hover:bg-info-text/90 transition-all disabled:opacity-50"
+            >
+              Simulate Customer PTP Response
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Timeline Section */}
-      <div className="rounded-xl border border-border bg-surface p-6 md:p-8 shadow-sm space-y-6">
+      <div id="guardrails" className="rounded-xl border border-border bg-surface p-6 md:p-8 shadow-sm space-y-6">
         <div className="border-b border-border pb-4">
           <h2 className="text-lg font-bold text-text-primary">Case Execution Timeline</h2>
           <p className="text-xs text-text-secondary mt-0.5">
@@ -221,8 +265,15 @@ export const CaseDetail: React.FC = () => {
               <p>
                 Risk event <span className="font-mono font-semibold text-text-primary">{event.event_type}</span> captured for ₹{(event.amount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}.
               </p>
-              <div className="rounded-lg bg-page border border-border p-3 font-mono text-xs text-text-secondary overflow-x-auto">
-                {JSON.stringify(event.raw_payload, null, 2)}
+              <div className="rounded-lg bg-page border border-border p-3 font-mono text-xs text-text-secondary overflow-x-auto whitespace-pre-wrap">
+                {JSON.stringify(
+                  {
+                    ...event.raw_payload,
+                    amount: `${event.raw_payload.amount} paise (₹${(event.raw_payload.amount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })})`
+                  },
+                  null,
+                  2
+                )}
               </div>
             </div>
           </TimelineNode>
@@ -252,6 +303,15 @@ export const CaseDetail: React.FC = () => {
                 color = "success"; title = "Human Resolution";
               }
 
+              const colorClasses = {
+                system: "bg-system-bg text-system-text border-system-text/20",
+                warning: "bg-warning-bg text-warning-text border-warning-text/20",
+                danger: "bg-danger-bg text-danger-text border-danger-text/20",
+                info: "bg-info-bg text-info-text border-info-text/20",
+                success: "bg-success-bg text-success-text border-success-text/20",
+                neutral: "bg-page text-text-secondary border-border"
+              };
+              
               return (
                 <TimelineNode
                   key={log.id}
@@ -263,7 +323,7 @@ export const CaseDetail: React.FC = () => {
                   isLast={idx === logs.length - 1}
                 >
                   <div className="space-y-2">
-                    <div className={`rounded-lg border p-3 text-xs italic bg-${color}-bg text-${color}-text border-${color}-text/20`}>
+                    <div className={`rounded-lg border p-3 text-xs italic ${colorClasses[color]}`}>
                       "{log.reasoning}"
                     </div>
 

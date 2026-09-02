@@ -17,10 +17,7 @@ key_id = os.environ.get("RAZORPAY_KEY_ID")
 key_secret = os.environ.get("RAZORPAY_KEY_SECRET")
 webhook_secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET")
 
-if not key_id or not key_secret or not webhook_secret:
-    raise ValueError("Razorpay credentials or webhook secret not found in environment variables.")
-
-razorpay_client = razorpay.Client(auth=(key_id, key_secret))
+razorpay_client = razorpay.Client(auth=(key_id, key_secret)) if key_id and key_secret else None
 
 def process_webhook_case(event_id: str, db: Session):
     event = db.query(RiskEvent).filter(RiskEvent.id == event_id).first()
@@ -44,6 +41,9 @@ def process_webhook_case(event_id: str, db: Session):
 
 @router.post("/api/webhooks/razorpay")
 async def razorpay_webhook(request: Request, background_tasks: BackgroundTasks, x_razorpay_signature: str = Header(None), db: Session = Depends(get_db)):
+    if not razorpay_client or not webhook_secret:
+        raise HTTPException(status_code=500, detail="Razorpay credentials not configured")
+        
     payload = await request.body()
     try:
         # Signature verification
@@ -85,7 +85,7 @@ async def razorpay_webhook(request: Request, background_tasks: BackgroundTasks, 
         amount=amount,
         currency=currency,
         raw_payload=data,
-        created_at=datetime.datetime.utcnow(),
+        created_at=datetime.datetime.now(datetime.timezone.utc),
         split="dev" # webhooks are always dev traffic for now
     )
     

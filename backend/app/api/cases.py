@@ -98,7 +98,7 @@ def resolve_ptp(event_id: str, req: ResolvePTPRequest, db: Session = Depends(get
         actor="human_agent",
         action="resolve_ptp",
         reasoning=f"Human operator marked PTP as {req.status}",
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(datetime.timezone.utc)
     )
     db.add(log)
     db.commit()
@@ -107,7 +107,7 @@ def resolve_ptp(event_id: str, req: ResolvePTPRequest, db: Session = Depends(get
 
 @router.post("/api/cases/{event_id}/simulate-payment")
 def simulate_payment(event_id: str, db: Session = Depends(get_db)):
-    from ..models.entities import DeliveryResult, Intervention, AuditLogEntry, BatchRunResult
+    from ..models.entities import DeliveryResult, Intervention, AuditLogEntry
     import uuid, datetime
     
     interventions = db.query(Intervention).filter(Intervention.event_id == event_id).all()
@@ -128,22 +128,48 @@ def simulate_payment(event_id: str, db: Session = Depends(get_db)):
         actor="human_agent",
         action="simulate_payment",
         reasoning="Simulated confirmation (test-mode has no auto-payment)",
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(datetime.timezone.utc)
     )
     db.add(log)
-    
-    # Also patch the latest BatchRunResult so the UI dashboard updates immediately
-    latest_run = db.query(BatchRunResult).order_by(BatchRunResult.started_at.desc()).first()
-    if latest_run and latest_run.recovered_list:
-        updated_list = []
-        for c in latest_run.recovered_list:
-            if c.get("case_id") == event_id:
-                c["status"] = "simulated_recovered"
-            updated_list.append(c)
-        latest_run.recovered_list = updated_list
-        # Trick SQLAlchemy into detecting JSON mutation
-        from sqlalchemy.orm.attributes import flag_modified
-        flag_modified(latest_run, "recovered_list")
-        
     db.commit()
     return {"status": "success", "message": "Simulated payment successfully"}
+
+@router.post("/api/cases/{event_id}/simulate-ptp")
+def simulate_ptp(event_id: str, db: Session = Depends(get_db)):
+    from ..models.entities import DeliveryResult, Intervention, AuditLogEntry, PromiseToPay
+    import uuid, datetime
+    
+    interventions = db.query(Intervention).filter(Intervention.event_id == event_id).all()
+    int_ids = [i.id for i in interventions]
+    if not int_ids:
+        raise HTTPException(status_code=404, detail="No interventions found")
+        
+    delivery = db.query(DeliveryResult).filter(DeliveryResult.intervention_id.in_(int_ids)).order_by(DeliveryResult.id.desc()).first()
+    if not delivery:
+        raise HTTPException(status_code=404, detail="No delivery result found")
+        
+    delivery.status = "responded_ptp_simulated"
+    
+    promised_date = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=3)).date()
+    db_ptp = PromiseToPay(
+        id=f"ptp_{uuid.uuid4().hex}",
+        case_id=event_id,
+        promised_amount=2500000,
+        promised_date=promised_date,
+        status="pending",
+        detected_via="simulated_human_input"
+    )
+    db.add(db_ptp)
+    
+    # Add audit log
+    log = AuditLogEntry(
+        id=f"log_{uuid.uuid4().hex}",
+        case_id=event_id,
+        actor="human_agent",
+        action="simulate_ptp",
+        reasoning="simulated customer response, no real WhatsApp integration",
+        timestamp=datetime.datetime.now(datetime.timezone.utc)
+    )
+    db.add(log)
+    db.commit()
+    return {"status": "success", "message": "Simulated PTP successfully"}

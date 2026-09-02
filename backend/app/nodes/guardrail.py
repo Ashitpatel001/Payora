@@ -11,46 +11,48 @@ from .guardrails.ptp_suppression import check_ptp_suppression
 def guardrail_node(state: RecoveryState) -> RecoveryState:
     event = state["event"]
     db = SessionLocal()
-    
-    rules = [
-        check_max_attempts,
-        check_dispute_status,
-        check_ptp_suppression
-    ]
-    
-    # We will also keep the high value block from earlier for extra measure
-    amount = event.get("amount", 0)
-    def check_high_value(evt, d):
-        passed = amount <= 2500000
-        return {
-            "rule_name": "high_value_block",
-            "passed": passed,
-            "reason": "Amount exceeds automated intervention limit (25k INR)" if not passed else "Amount within bounds"
-        }
-    rules.append(check_high_value)
-    
-    all_passed = True
-    failed_rule = None
-    
-    for rule in rules:
-        res = rule(event, db)
-        # Persist every check
-        db_res = GuardrailResult(
-            id=f"gr_{uuid.uuid4().hex}",
-            event_id=event["id"],
-            rule_name=res["rule_name"],
-            passed=res["passed"],
-            reason=res["reason"],
-            checked_at=datetime.datetime.utcnow()
-        )
-        db.add(db_res)
+    try:
+        rules = [
+            check_max_attempts,
+            check_dispute_status,
+            check_ptp_suppression
+        ]
         
-        if not res["passed"] and all_passed:
-            all_passed = False
-            failed_rule = res
+        # We will also keep the high value block from earlier for extra measure
+        amount = event.get("amount", 0)
+        from ..config import HIGH_VALUE_THRESHOLD_PAISE
+        def check_high_value(evt, d):
+            passed = amount <= HIGH_VALUE_THRESHOLD_PAISE
+            return {
+                "rule_name": "high_value_block",
+                "passed": passed,
+                "reason": "Amount exceeds automated intervention limit (25k INR)" if not passed else "Amount within bounds"
+            }
+        rules.append(check_high_value)
+        
+        all_passed = True
+        failed_rule = None
+        
+        for rule in rules:
+            res = rule(event, db)
+            # Persist every check
+            db_res = GuardrailResult(
+                id=f"gr_{uuid.uuid4().hex}",
+                event_id=event["id"],
+                rule_name=res["rule_name"],
+                passed=res["passed"],
+                reason=res["reason"],
+                checked_at=datetime.datetime.utcnow()
+            )
+            db.add(db_res)
             
-    db.commit()
-    db.close()
+            if not res["passed"] and all_passed:
+                all_passed = False
+                failed_rule = res
+                
+        db.commit()
+    finally:
+        db.close()
     
     final_res = failed_rule if not all_passed else {
         "rule_name": "all_cleared",
@@ -65,7 +67,7 @@ def guardrail_node(state: RecoveryState) -> RecoveryState:
         "actor": "system",
         "action": "guardrail_check",
         "reasoning": final_res["reason"],
-        "timestamp": "now"
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     })
     
     return state

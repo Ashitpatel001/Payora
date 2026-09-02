@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { startBatchRun, getBatchResults } from '../api/client';
+import { startBatchRun, getBatchResults, type BatchRunResult } from '../api/client';
 import { StatCard } from '../components/StatCard';
 import { DataTable, type Column } from '../components/DataTable';
 import { Badge } from '../components/Badge';
 
 export const BatchMetrics: React.FC = () => {
-  const [runs, setRuns] = useState<any[]>([]);
+  const [runs, setRuns] = useState<BatchRunResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [polling, setPolling] = useState(false);
@@ -33,7 +33,11 @@ export const BatchMetrics: React.FC = () => {
 
   useEffect(() => {
     if (polling) {
-      const interval = setInterval(loadRuns, 2000);
+      const interval = setInterval(() => {
+        if (!document.hidden) {
+          loadRuns();
+        }
+      }, 2000);
       return () => clearInterval(interval);
     }
   }, [polling]);
@@ -43,8 +47,8 @@ export const BatchMetrics: React.FC = () => {
     try {
       await startBatchRun();
       await loadRuns();
-    } catch (e) {
-      alert('Failed to start batch run. Please confirm holdout cases exist.');
+    } catch (e: any) {
+      alert(`Failed to start batch run: ${e.message}`);
     } finally {
       setStarting(false);
     }
@@ -63,11 +67,17 @@ export const BatchMetrics: React.FC = () => {
 
   const latestRun = runs.length > 0 ? runs[0] : null;
   const realRecoveredCount = latestRun?.recovered_list?.filter((c: any) => c.status === 'recovered').length || 0;
-  const simRecoveredCount = latestRun?.recovered_list?.filter((c: any) => c.status === 'simulated_recovered').length || 0;
+  const simRecoveredCount = latestRun?.recovered_list?.filter((c: any) => c.status === 'simulated_recovered' || c.status === 'responded_ptp_simulated').length || 0;
+  
+  // Action breakdown
+  const fallbackCount = latestRun?.recovered_list?.filter((c: any) => c.status === 'action_failed_simulated').length || 0;
+  const realApiCount = (latestRun?.recovered_list?.length || 0) - fallbackCount;
+  const blockedCount = latestRun?.exception_list?.length || 0;
+
   const realRate = latestRun && latestRun.total_cases ? ((realRecoveredCount / latestRun.total_cases) * 100) : 0;
   const simRate = latestRun && latestRun.total_cases ? ((simRecoveredCount / latestRun.total_cases) * 100) : 0;
 
-  const exceptionColumns: Column<any>[] = [
+  const exceptionColumns: Column<{case_id: string; reason: string; rule: string}>[] = [
     {
       key: 'case_id',
       header: 'Case ID',
@@ -100,7 +110,7 @@ export const BatchMetrics: React.FC = () => {
     },
   ];
 
-  const recoveredColumns: Column<any>[] = [
+  const recoveredColumns: Column<{case_id: string; amount: number; channel: string; short_url?: string; status: string}>[] = [
     {
       key: 'case_id',
       header: 'Case ID',
@@ -213,22 +223,44 @@ export const BatchMetrics: React.FC = () => {
       ) : (
         <div className="space-y-8">
           {/* Status & Stat Cards Grid */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Evaluation Action Rate"
-              value={`${latestRun.recovery_rate.toFixed(1)}%`}
-              subtitle={`${latestRun.cases_processed} of ${latestRun.total_cases} holdout cases actioned`}
-              trend={{
-                value: `Pending actual payment`,
-                isPositive: true,
-              }}
-              icon={
-                <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              }
-            />
-            <StatCard
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <StatCard
+                label="Real API Successes"
+                value={`${realApiCount}`}
+                subtitle={`Payment link or message sent successfully`}
+                trend={{ value: 'Real action taken', isPositive: true }}
+                icon={
+                  <svg className="w-5 h-5 text-success-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+              <StatCard
+                label="Guardrail Blocked"
+                value={`${blockedCount}`}
+                subtitle={`Interventions halted by safety rules`}
+                trend={{ value: 'Policy enforced', isPositive: false }}
+                icon={
+                  <svg className="w-5 h-5 text-warning-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                }
+              />
+              <StatCard
+                label="Network Fallback Simulated"
+                value={`${fallbackCount}`}
+                subtitle={`Razorpay test limit/DNS drops simulated`}
+                trend={{ value: 'Demo resilience', isPositive: undefined }}
+                icon={
+                  <svg className="w-5 h-5 text-info-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                }
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-8">
+              <StatCard
               label="Confirmed Recovery Rate"
               value={`${realRate.toFixed(1)}%`}
               subtitle={`${realRecoveredCount} real webhook recoveries`}
@@ -257,7 +289,7 @@ export const BatchMetrics: React.FC = () => {
               }
             />
             <StatCard
-              label="Amount Actioned"
+              label="Amount Confirmed"
               value={`₹${(latestRun.amount_recovered / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
               subtitle={`Out of ₹${(latestRun.amount_at_risk / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })} risk`}
               icon={

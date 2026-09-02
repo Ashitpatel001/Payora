@@ -1,3 +1,6 @@
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
@@ -80,8 +83,12 @@ def generate():
         source, event_type = random.choice(event_types)
         split = "dev" if i < (dev_count - 3) else "holdout"
         
+        # Right skewed distribution between 500 and 75000 INR
+        val = int(random.betavariate(2, 6) * 75000)
+        val = max(500, min(75000, val))
+        
         raw_payload = {
-            "amount": random.randint(500, 50000) * 100, # paise
+            "amount": val * 100, # paise
             "currency": "INR",
             "customer_id": f"cust_{uuid.uuid4().hex[:8]}"
         }
@@ -103,7 +110,7 @@ def generate():
     db.commit()
     db.close()
     
-    print(f"Generated {total_events} synthetic events (120 dev, 30 holdout), including 3 seeded guardrail triggers")
+    logger.info(f"Generated {total_events} synthetic events (120 dev, 30 holdout), including 3 seeded guardrail triggers")
 
 if __name__ == "__main__":
     generate()
