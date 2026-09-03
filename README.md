@@ -32,6 +32,17 @@ graph LR
 | **Confirm** | Records delivery status. Processes `payment_link.paid` webhooks (with HMAC signature verification) to close the recovery loop. |
 | **Audit Log** | Persists every decision, exception, and outcome to the database with ISO 8601 timestamps. |
 
+## Enterprise Guardrails & Compliance
+
+Agentic AI introduces brand and financial risk if left unchecked. To make this system enterprise-ready, we implemented a deterministic **Guardrail Gate** that evaluates every case *after* LLM reasoning but *before* Razorpay execution.
+
+![Compliance Logs](assets/compliance_logs.png)
+
+- **Hard Amount Limits:** Automatically blocks AI interventions on high-value transactions (e.g., > ₹25,000), routing them to human review to prevent automated mistakes on VIP accounts.
+- **Cooldown Enforcement:** Prevents the system from spamming customers by blocking duplicate actions within a 24-hour window.
+- **Strict Pydantic Enums:** The LLM's diagnostic output is constrained to strict Enums. If the AI hallucinates a non-existent strategy, Pydantic catches the `ValidationError` and safely falls back to deterministic rules.
+- **Immutable Audit Trail:** Every single blocked action is written to a dedicated compliance log with timestamps and violation reasons.
+
 ---
 
 ## What's Real vs. Simulated
