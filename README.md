@@ -2,7 +2,7 @@
 
 **AI-powered agentic pipeline that diagnoses failed payments, applies guardrails, and autonomously creates Razorpay payment links to recover revenue.**
 
-**Track 03 - AI Revenue Recovery** | Sub-directions: payment degradation → root-cause diagnosis → automated recovery, B2B receivables, promise-to-pay tracker, mandate retry orchestration.
+**Track 03 - AI Revenue Recovery** | Sub-directions: payment degradation -> root-cause diagnosis -> automated recovery, B2B receivables, promise-to-pay tracker, mandate retry orchestration.
 
 ![Main Dashboard View](assets/hero_dashboard.png)
 
@@ -25,10 +25,10 @@ graph LR
 
 | Node | What it does |
 |------|-------------|
-| **Diagnose** | Calls Groq (Llama) with a constrained prompt. Output is Pydantic-validated against strict enums (`RootCauseCategory`, `RiskQuadrant`). Falls back to deterministic rules if the LLM fails or is rate-limited. |
+| **Diagnose** | Calls Groq (Llama) with a constrained prompt. Output is Pydantic-validated against strict enums (`RootCauseCategory`, `RiskQuadrant`). Falls back to deterministic rules if the LLM fails or is rate limited. |
 | **Guardrail** | Blocks cases exceeding ₹25,000 automated intervention limit. Prevents duplicate actions on the same case within a cooldown window. |
 | **Policy** | Maps `(root_cause, risk_quadrant)` to a recovery strategy: channel (SMS/email/voice), tone (empathetic/firm), and retry schedule. |
-| **Execute** | Calls `razorpay.PaymentLink.create()` via the real Python SDK to mint a live test-mode payment link. Circuit breaker (pyfailsafe) wraps the entire retry-inclusive call as a single unit — the breaker only sees one failure per case, not one per retry attempt. |
+| **Execute** | Calls `razorpay.PaymentLink.create()` via the real Python SDK to mint a live test-mode payment link. Circuit breaker (pyfailsafe) wraps the entire retry-inclusive call as a single unit, the breaker only sees one failure per case, not one per retry attempt. |
 | **Confirm** | Records delivery status. Processes `payment_link.paid` webhooks (with HMAC signature verification) to close the recovery loop. |
 | **Audit Log** | Persists every decision, exception, and outcome to the database with ISO 8601 timestamps. |
 
