@@ -167,7 +167,7 @@ export const Dashboard: React.FC = () => {
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
-                {batch_trends.slice(0, 3).map((run: any, i: number) => (
+                {batch_trends.slice(-3).reverse().map((run: any, i: number) => (
                   <div key={i} className="rounded-lg border border-border bg-page p-4">
                     <p className="text-xs text-text-secondary font-mono">{run.date}</p>
                     <p className="text-xl font-bold text-text-primary mt-1 tabular-nums">
@@ -183,7 +183,7 @@ export const Dashboard: React.FC = () => {
               {/* Visual chart bar representations */}
               <div className="pt-4 border-t border-border">
                 <div className="flex items-end justify-between gap-3 h-32 pt-6">
-                  {batch_trends.slice(0, 8).map((run: any, idx: number) => (
+                  {batch_trends.slice(-8).map((run: any, idx: number) => (
                     <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
                       <span className="text-[11px] font-semibold text-text-primary opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">
                         {run.recovery_rate}%
@@ -192,9 +192,14 @@ export const Dashboard: React.FC = () => {
                         className="w-full bg-accent/80 hover:bg-accent rounded-t transition-all"
                         style={{ height: `${Math.max(run.recovery_rate, 10)}%` }}
                       />
-                      <span className="text-[10px] text-text-secondary truncate w-full text-center">
-                        {run.date.split(',')[0]}
-                      </span>
+                      <div className="flex flex-col items-center text-center w-full mt-1" title={run.date}>
+                        <span className="text-[10px] text-text-secondary leading-none">
+                          {run.date.split(',')[0]}
+                        </span>
+                        <span className="text-[9px] text-text-secondary/70 leading-none mt-0.5">
+                          {run.date.split(',')[1]?.trim()}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>

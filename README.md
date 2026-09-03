@@ -2,7 +2,9 @@
 
 **AI-powered agentic pipeline that diagnoses failed payments, applies guardrails, and autonomously creates Razorpay payment links to recover revenue.**
 
-**Track 03 — AI Revenue Recovery** | Sub-directions: payment degradation → root-cause diagnosis → automated recovery, B2B receivables, promise-to-pay tracker, mandate retry orchestration.
+**Track 03 - AI Revenue Recovery** | Sub-directions: payment degradation → root-cause diagnosis → automated recovery, B2B receivables, promise-to-pay tracker, mandate retry orchestration.
+
+![Main Dashboard View](assets/hero_dashboard.png)
 
 ---
 
@@ -39,6 +41,8 @@ graph LR
 
 ### Real — running in production code paths
 
+![Case Detail - LLM Reasoning and Razorpay Link](assets/case_detail.png)
+
 - **LangGraph orchestration**: Six-node state graph with conditional routing ([`graph.py`](backend/app/nodes/graph.py))
 - **LLM diagnosis via Groq**: Every case is sent to `groq/compound` (Llama) with a structured prompt that explicitly lists valid enum values. Output is Pydantic-validated; hallucinated values trigger automatic fallback to rules ([`diagnose.py`](backend/app/nodes/diagnose.py))
 - **Razorpay SDK calls**: `execute_node` calls `razorpay.PaymentLink.create()` using real test-mode API keys. Payment links are live and clickable (`https://rzp.io/...`) ([`execute.py`](backend/app/nodes/execute.py))
@@ -70,6 +74,8 @@ Computed on a **30-case holdout split** never touched during development. Run tr
 | **Guardrail Blocked** | 10 — amount exceeded ₹25,000 automated intervention limit |
 | **Network Fallback Simulated** | 0 |
 | **Wall-clock time** | 543 seconds (~9 minutes) |
+
+![Batch Evaluation Metrics](assets/batch_metrics.png)
 
 The 9-minute runtime is caused by Groq free-tier rate limits (30 req/min). Each rate-limited case triggers exponential backoff (5s → 10s → 20s) before the request succeeds or falls back to rules. See "Known Limitations" below.
 
