@@ -38,7 +38,7 @@ Agentic AI introduces brand and financial risk if left unchecked. To make this s
 
 ![Compliance Logs](assets/compliance_logs.png)
 
-- **Hard Amount Limits:** Automatically blocks AI interventions on high-value transactions (e.g., > ₹25,000), routing them to human review to prevent automated mistakes on VIP accounts.
+- **Hard Amount Limits:** Automatically blocks AI interventions on high value transactions (e.g., > ₹25,000), routing them to human review to prevent automated mistakes on VIP accounts.
 - **Cooldown Enforcement:** Prevents the system from spamming customers by blocking duplicate actions within a 24-hour window.
 - **Strict Pydantic Enums:** The LLM's diagnostic output is constrained to strict Enums. If the AI hallucinates a non-existent strategy, Pydantic catches the `ValidationError` and safely falls back to deterministic rules.
 - **Immutable Audit Trail:** Every single blocked action is written to a dedicated compliance log with timestamps and violation reasons.
@@ -70,7 +70,7 @@ Agentic AI introduces brand and financial risk if left unchecked. To make this s
 
 ### Simulated — explicitly labeled in the UI, never blended into confirmed metrics
 
-- **"Simulate Payment Received"** and **"Simulate PTP Response"** buttons on the Case Detail page. These exist because Razorpay test mode does not auto-fire `payment_link.paid` webhooks when a link is opened. The buttons let you demo the confirmation loop (payment received → status updated → audit logged) without requiring a real customer transaction. The UI labels them as simulations. The "Amount Confirmed" metric on the Batch Evaluation page only counts cases that reach a confirmed terminal state — simulated button clicks are tracked separately as `action_failed_simulated` and are never summed into the confirmed total.
+- **"Simulate Payment Received"** and **"Simulate PTP Response"** buttons on the Case Detail page. These exist because Razorpay test mode does not auto-fire `payment_link.paid` webhooks when a link is opened. The buttons let you demo the confirmation loop (payment received → status updated → audit logged) without requiring a real customer transaction. The UI labels them as simulations. The "Amount Confirmed" metric on the Batch Evaluation page only counts cases that reach a confirmed terminal state, simulated button clicks are tracked separately as `action_failed_simulated` and are never summed into the confirmed total.
 
 ---
 
@@ -81,8 +81,8 @@ Computed on a **30-case holdout split** never touched during development. Run tr
 | Metric | Value |
 |--------|-------|
 | **Total cases** | 30 |
-| **Real API Successes** | 20 — LLM diagnosed, guardrails passed, live Razorpay payment link created |
-| **Guardrail Blocked** | 10 — amount exceeded ₹25,000 automated intervention limit |
+| **Real API Successes** | 20 - LLM diagnosed, guardrails passed, live Razorpay payment link created |
+| **Guardrail Blocked** | 10 - amount exceeded ₹25,000 automated intervention limit |
 | **Network Fallback Simulated** | 0 |
 | **Wall-clock time** | 543 seconds (~9 minutes) |
 
@@ -181,7 +181,7 @@ curl -X POST http://localhost:8001/api/batch-run \
   -H "x-api-key: dev-secret-key"
 ```
 
-Monitor progress in the Batch Evaluation tab. Expect ~9–15 minutes for 30 cases due to Groq rate limits.
+Monitor progress in the Batch Evaluation tab. Expect ~9-15 minutes for 30 cases due to Groq rate limits.
 
 ---
 
@@ -190,7 +190,7 @@ Monitor progress in the Batch Evaluation tab. Expect ~9–15 minutes for 30 case
 | Layer | Technology |
 |-------|-----------|
 | **Orchestration** | LangGraph (StateGraph, conditional edges) |
-| **LLM** | Groq API — Llama (via `langchain-groq`) |
+| **LLM** | Groq API - Llama (via `langchain-groq`) |
 | **Payments** | Razorpay Python SDK (test mode) |
 | **Backend** | FastAPI + Uvicorn |
 | **Database** | SQLite + SQLAlchemy + Alembic |
