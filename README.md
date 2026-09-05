@@ -116,8 +116,8 @@ Stated plainly, not defensively:
 ### 1. Clone and configure environment
 
 ```bash
-git clone https://github.com/Ashitpatel001/Avero.git
-cd Avero
+https://github.com/Ashitpatel001/Payora.git
+cd Payora
 ```
 
 Create a `.env` file in the project root:
